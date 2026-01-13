@@ -3,8 +3,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
 from .models import Student, Teacher, Course
+from django.shortcuts import render, redirect
+from .forms import RegistrationForm
 
 # ----------------- HELPER FUNCTION -----------------
+
+
 def get_json_body(request):
     """Safely parse JSON body"""
     try:
@@ -13,6 +17,8 @@ def get_json_body(request):
         return {}
 
 # ----------------- STUDENT VIEWS -----------------
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PATCH", "DELETE"])
 def students_view(request, student_id=None):
@@ -166,7 +172,8 @@ def courses_view(request, course_id=None):
             try:
                 course = Course.objects.get(id=course_id)
                 course.name = data.get("name", course.name)
-                course.description = data.get("description", course.description)
+                course.description = data.get(
+                    "description", course.description)
                 course.save()
                 return JsonResponse({"message": "Course updated"})
             except Course.DoesNotExist:
@@ -184,3 +191,19 @@ def courses_view(request, course_id=None):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
+
+
+def success_view(request):
+    return render(request, "success.html")
+
+
+def register_view(request):
+    if request.method == "POST":
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            form.save()  # saves to DB
+            return redirect("success")
+    else:
+        form = RegistrationForm()
+
+    return render(request, "register.html", {"form": form})

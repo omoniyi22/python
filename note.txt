@@ -1,0 +1,12 @@
+python --version
+pip install django
+
+django-admin startproject djangoclass
+
+python -m django startproject djangoclass
+cd djangoclass
+python manage.py startapp classapp 
+python manage.py runserver 
+
+python manage.py makemigrations
+python manage.py migrate
