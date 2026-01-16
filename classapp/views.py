@@ -3,8 +3,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
 from .models import Student, Teacher, Course
-
+from django.shortcuts import render, redirect
+from .registrationForm import RegistrationForm
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm
+from django.utils.decorators import method_decorator
 # ----------------- HELPER FUNCTION -----------------
+
+
 def get_json_body(request):
     """Safely parse JSON body"""
     try:
@@ -13,6 +20,8 @@ def get_json_body(request):
         return {}
 
 # ----------------- STUDENT VIEWS -----------------
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PATCH", "DELETE"])
 def students_view(request, student_id=None):
@@ -71,7 +80,30 @@ def students_view(request, student_id=None):
         return JsonResponse({"error": str(e)}, status=400)
 
 
+def login_view(request):
+    if request.method == "POST":
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect("dashboard")
+    else:
+        form = AuthenticationForm()
+    return render(request, "login.html", {"form": form})
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("login")
+
+
+@login_required
+def dashboard_view(request):
+    return render(request, "dashboard.html", {"user": request.user})
+
 # ----------------- TEACHER VIEWS -----------------
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PATCH", "DELETE"])
 def teachers_view(request, teacher_id=None):
@@ -166,7 +198,8 @@ def courses_view(request, course_id=None):
             try:
                 course = Course.objects.get(id=course_id)
                 course.name = data.get("name", course.name)
-                course.description = data.get("description", course.description)
+                course.description = data.get(
+                    "description", course.description)
                 course.save()
                 return JsonResponse({"message": "Course updated"})
             except Course.DoesNotExist:
@@ -184,3 +217,30 @@ def courses_view(request, course_id=None):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
+
+
+def success_view(request):
+    return render(request, "success.html")
+
+
+from django.contrib.auth.models import Group
+
+def register_view(request):
+    if request.method == "POST":
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+
+            # Assign default role
+            student_group = Group.objects.get(name="Student")
+            user.groups.add(student_group)
+
+            # Create Student profile
+            Student.objects.create(user=user)
+
+            login(request, user)
+            return redirect("dashboard")
+    else:
+        form = RegistrationForm()
+
+    return render(request, "register.html", {"form": form})
